@@ -1,0 +1,25 @@
+1)
+MATCH (p:Paper)<-[c:CITED_BY]-(a:Paper)-[r:PUBLISHED_AT]->(d:Document)
+WHERE d.DocumentType ="Conference"
+WITH d.ConferenceName AS name, a, count(c) AS citations
+ORDER BY name, citations DESC
+WITH name, collect({paper: a.Title, cited: citations}) AS papers
+RETURN name AS Conference, [p IN papers[..3] | p.paper] AS Papers, [p IN papers[..3] | p.cited] AS Cited
+
+2)
+MATCH (a:Author)<-[w:WRITTEN_BY]-(p:Paper)-[r:PUBLISHED_AT]->(d:Document)
+WITH a,d.ConferenceName as Conference_Name, count(DISTINCT d.Volume) as Editions
+WHERE Editions > 3
+RETURN Conference_Name, collect(a.AuthorName)  as Community_member
+
+3)
+To be added
+
+4)
+MATCH (a:Author)<-[w:WRITTEN_BY]-(p:Paper)-[b:CITED_BY]->(p2:Paper) WITH a, p, count(b) AS citations
+WITH a, p, citations ORDER BY citations DESC
+WITH a, count(p) AS total, collect(citations) AS list
+WITH a, total, list, [x in range(1, size(list)) WHERE x <= list[x - 1] | [list[x - 1], x] ] AS list_hindex
+WITH *, list_hindex[-1][1] AS h_index
+ORDER BY h_index DESC
+RETURN a.AuthorName as Author, h_index
