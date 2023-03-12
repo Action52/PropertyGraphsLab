@@ -13,7 +13,7 @@ WHERE Editions > 3
 RETURN Conference_Name, collect(a.AuthorName)  as Community_member
 
 3)
-To be added
+//To be added
 
 4)
 MATCH (a:Author)<-[w:WRITTEN_BY]-(p:Paper)-[b:CITED_BY]->(p2:Paper) WITH a, p, count(b) AS citations
