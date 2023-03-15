@@ -1,0 +1,85 @@
+1)
+MATCH (a:Author)<-[w:WRITTEN_BY]-(p:Paper)-[r:RELATED_TO]->(t:Topic)
+WHERE t.Keyword CONTAINS 'Data management' OR t.Keyword CONTAINS 'Indexing' OR t.Keyword CONTAINS 'Data modeling' OR t.Keyword CONTAINS 'Big data' OR t.Keyword CONTAINS 'Data processing' OR t.Keyword CONTAINS 'Data storage' OR t.Keyword CONTAINS 'Data querying'
+RETURN Distinct a.AuthorName as Author, collect(t.Keyword) as Keywords, collect(p.Title) as Papers
+
+
+2)
+MATCH (d:Document)<-[w:PUBLISHED_AT]-(p:Paper)-[r:RELATED_TO]->(t:Topic)
+WITH d, t, count(p) as p1, collect(p) as papers
+UNWIND papers as p
+WITH d, t, count(p) as p2, p1
+WHERE (t.Keyword CONTAINS 'Data management' OR t.Keyword CONTAINS 'Indexing' OR t.Keyword CONTAINS 'Data modeling' OR t.Keyword CONTAINS 'Big data' OR t.Keyword CONTAINS 'Data processing' OR t.Keyword CONTAINS 'Data storage' OR t.Keyword CONTAINS 'Data querying')
+AND (p2/p1 >=0.9)
+RETURN DISTINCT d.Title as Paper_Title, d.DocumentType as Publication_Type
+
+3)
+//need to be run separately
+create (:Community {name:'data'}) 
+
+//need to be run separately
+match (c:Community {name:'data'})
+match (t:Topic)
+where t.Keyword in ['Data management', 'Indexing', 'Data modeling', 'Big data', 'Data processing', 'Data storage' , 'Data querying']
+merge (t)-[:CONSTITUTE]->(c)  
+
+
+//need to be run separately
+CALL gds.graph.project.cypher('Datacommunity',
+'MATCH (p:Paper)-[r:RELATED_TO]->(t:Topic)-[c:CONSTITUTE]->(com:Community) WHERE com.name="data" RETURN id(p) AS id',
+'MATCH (com2:Community)<-[c2:CONSTITUTE]-(t2:Topic)<-[r2:RELATED_TO]-(p2:Paper)<-[cit:CITED_BY]-(p1:Paper)-[r1:RELATED_TO]->(t1:Topic)-[c1:CONSTITUTE]->(com1:Community) WHERE com1.name="data" AND com2.name="data" RETURN id(p1) AS source, id(p2) AS target')
+YIELD
+graphName AS graph, nodeQuery, nodeCount AS nodes, relationshipQuery, relationshipCount AS rels 
+
+
+//need to be run separately
+MATCH (d:Document)<-[w:PUBLISHED_AT]-(p:Paper)-[r:RELATED_TO]->(t:Topic)
+WITH d, t, count(p) as p1, collect(p) as papers
+UNWIND papers as p
+WITH p, d, t, count(p) as p2, p1
+WHERE (t.Keyword CONTAINS 'Data management' OR t.Keyword CONTAINS 'Indexing' OR t.Keyword CONTAINS 'Data modeling' OR t.Keyword CONTAINS 'Big data' OR t.Keyword CONTAINS 'Data processing' OR t.Keyword CONTAINS 'Data storage' OR t.Keyword CONTAINS 'Data querying')
+AND (p2/p1 >=0.9)
+WITH collect (p.Title) as Papers
+CALL gds.pageRank.stream('Datacommunity')
+YIELD nodeId, score
+WHERE gds.util.asNode(nodeId).Title in Papers
+RETURN gds.util.asNode(nodeId).Title as papers, score
+ORDER by score desc
+LIMIT 100   //need to be run separately
+
+4) //Query to find authors of the previous top-100 papers
+MATCH (d:Document)<-[w:PUBLISHED_AT]-(p:Paper)-[r:RELATED_TO]->(t:Topic)
+WITH d, t, count(p) as p1, collect(p) as papers
+UNWIND papers as p
+WITH p, d, t, count(p) as p2, p1
+WHERE (t.Keyword CONTAINS 'Data management' OR t.Keyword CONTAINS 'Indexing' OR t.Keyword CONTAINS 'Data modeling' OR t.Keyword CONTAINS 'Big data' OR t.Keyword CONTAINS 'Data processing' OR t.Keyword CONTAINS 'Data storage' OR t.Keyword CONTAINS 'Data querying')
+AND (p2/p1 >=0.9)
+WITH collect (p.Title) as Papers
+CALL gds.pageRank.stream('Datacommunity')
+YIELD nodeId, score
+WHERE gds.util.asNode(nodeId).Title in Papers
+WITH gds.util.asNode(nodeId) as papers, score
+ORDER by score desc
+LIMIT 100
+MATCH (a:Author)<-[WRITTEN_BY]-(papers)
+RETURN DISTINCT a.AuthorName
+
+//Query to find gurus
+MATCH (d:Document)<-[w:PUBLISHED_AT]-(p:Paper)-[r:RELATED_TO]->(t:Topic)
+WITH d, t, count(p) as p1, collect(p) as papers
+UNWIND papers as p
+WITH p, d, t, count(p) as p2, p1
+WHERE (t.Keyword CONTAINS 'Data management' OR t.Keyword CONTAINS 'Indexing' OR t.Keyword CONTAINS 'Data modeling' OR t.Keyword CONTAINS 'Big data' OR t.Keyword CONTAINS 'Data processing' OR t.Keyword CONTAINS 'Data storage' OR t.Keyword CONTAINS 'Data querying')
+AND (p2/p1 >=0.9)
+WITH collect (p.Title) as Papers
+CALL gds.pageRank.stream('Datacommunity')
+YIELD nodeId, score
+WHERE gds.util.asNode(nodeId).Title in Papers
+WITH gds.util.asNode(nodeId) as papers, score
+ORDER by score desc
+LIMIT 100
+MATCH (a:Author)<-[WRITTEN_BY]-(papers)
+WITH a, count(DISTINCT papers) as papers_number
+WHERE papers_number>1
+RETURN DISTINCT a.AuthorName as Gurus
+
