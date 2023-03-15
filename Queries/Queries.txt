@@ -13,7 +13,15 @@ WHERE Editions > 3
 RETURN Conference_Name, collect(a.AuthorName)  as Community_member
 
 3)
-//To be added
+MATCH (d:Document)<-[w:PUBLISHED_AT]-(p:Paper)-[b:CITED_BY]->(p1:Paper)
+WHERE d.DocumentType = 'Journal'
+WITH d.Title as Journal, toInteger(b.Year) as Citation_Year, count(b) AS Citations
+WITH Journal, Citation_Year, Citations, toInteger(Citation_Year)-1 as first, toInteger(Citation_Year)-2 as second
+MATCH (d2:Document)<-[z:PUBLISHED_AT]-(p2:Paper)
+WHERE d2.Title = Journal AND toInteger(p2.Year) IN [first, second]
+WITH Journal, Citation_Year,first, second, Citations, count(DISTINCT d2) AS Publications
+RETURN Journal, Citation_Year, (ToFloat(Citations)/ToFloat(Publications) )as Impact_factor
+ORDER BY Citation_Year DESC
 
 4)
 MATCH (a:Author)<-[w:WRITTEN_BY]-(p:Paper)-[b:CITED_BY]->(p2:Paper) WITH a, p, count(b) AS citations
